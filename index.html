@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TTS Woodworks – Delivery Note & Invoice</title>
+  <!-- SheetJS for Excel parsing -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; background: #f3f4f6; padding: 20px; }
+    .container { max-width: 1000px; margin: auto; background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
+
+    /* HEADER */
+    h1 { text-align: center; color: #000; font-size: 24px; letter-spacing: 2px; }
+    h2 { text-align: center; color: #000; font-size: 13px; font-weight: normal; margin-bottom: 15px; }
+
+    .doc-type-tabs { display: flex; gap: 12px; justify-content: center; margin: 15px 0 20px; }
+    .doc-type-tabs button { padding: 8px 28px; border: 2px solid #1e3a8a; background: transparent; color: #1e3a8a; border-radius: 30px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+    .doc-type-tabs button.active { background: #1e3a8a; color: #fff; }
+    .doc-type-tabs button:hover { background: #1e3a8a; color: #fff; }
+
+    .section-title { font-weight: bold; background: #1e3a8a; color: #fff; padding: 6px 14px; margin: 20px 0 12px; border-radius: 6px; font-size: 14px; }
+
+    .row { display: flex; gap: 10px; margin: 8px 0; flex-wrap: wrap; align-items: center; }
+    .row input, .row textarea, .row select { flex: 1; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; min-width: 100px; font-size: 13px; background: #fff; }
+    textarea { resize: vertical; min-height: 42px; }
+    button { padding: 8px 18px; background: #2563eb; color: #fff; border: 0; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; transition: 0.15s; }
+    button:hover { background: #1e40af; }
+    .btn-danger { background: #dc2626; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-gray { background: #6b7280; }
+    .btn-gray:hover { background: #4b5563; }
+    .btn-success { background: #059669; }
+    .btn-success:hover { background: #047857; }
+    .btn-outline { background: transparent; border: 2px solid #2563eb; color: #2563eb; }
+    .btn-outline:hover { background: #2563eb; color: #fff; }
+
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #000; padding: 7px 5px; font-size: 12px; vertical-align: middle; }
+    th { background: #e5e7eb; text-align: center; font-weight: bold; }
+    td.center { text-align: center; }
+    td.right { text-align: right; }
+
+    .totalBox { width: 280px; margin-left: auto; margin-top: 12px; }
+    .totalBox td { padding: 4px 6px; border: 0; font-size: 13px; }
+
+    .footer { display: flex; justify-content: space-between; margin-top: 25px; font-size: 10px; border-top: 2px solid #000; padding-top: 12px; }
+    .terms { font-size: 8px; margin-top: 12px; padding: 10px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; line-height: 1.6; }
+
+    .delete-btn { background: #dc2626; padding: 2px 10px; color: #fff; border: 0; cursor: pointer; border-radius: 3px; font-size: 11px; }
+    .delete-btn:hover { background: #b91c1c; }
+
+    .badge { display: inline-block; padding: 5px 24px; border-radius: 30px; color: #fff; font-weight: bold; font-size: 16px; }
+    .badge-delivery { background: #059669; }
+    .badge-invoice { background: #1e3a8a; }
+
+    .doc-header { text-align: center; margin: 5px 0 12px; }
+
+    .free-item { color: #555; font-style: italic; }
+    .free-item td { color: #555; }
+
+    .upload-zone { border: 2px dashed #aaa; padding: 12px; border-radius: 8px; background: #fafafa; margin: 8px 0; display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+    .upload-zone input[type="file"] { flex: 1; min-width: 200px; }
+
+    @media print {
+      .no-print { display: none !important; }
+      body { background: #fff; padding: 0; }
+      .container { box-shadow: none; padding: 15px; border-radius: 0; }
+      .badge { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      th { background: #e5e7eb !important; print-color-adjust: exact; }
+      .terms { background: #f9f9f9 !important; print-color-adjust: exact; }
+    }
+  </style>
+</head>
+<body>
+<div class="container" id="appContainer">
+
+  <h1>TTS WOODWORKS</h1>
+  <h2>MANUFACTURER & SUPPLIER OF QUALITY WOODEN DOORS</h2>
+
+  <!-- Tabs: Delivery Note / Invoice -->
+  <div class="doc-type-tabs no-print">
+    <button class="active" data-mode="delivery" id="tabDelivery">📦 Delivery Note</button>
+    <button data-mode="invoice" id="tabInvoice">📄 Invoice</button>
+  </div>
+
+  <!-- Badge -->
+  <div class="doc-header">
+    <span class="badge badge-delivery" id="docBadge">📦 DELIVERY NOTE</span>
+  </div>
+
+  <!-- Document details (shared) -->
+  <div class="section-title">📋 Document Details</div>
+  <div class="row">
+    <input id="docNo" placeholder="DOCUMENT NO:" value="THUL13/05/036752/R">
+    <input id="vatNo" placeholder="VAT NO:" value="4910263976">
+  </div>
+  <div class="row">
+    <input id="customer" placeholder="INVOICE TO:" value="LADUMA HARDWARE AND BRICKS (PTY) LTD">
+    <input id="date" type="date">
+  </div>
+  <div class="row">
+    <textarea id="customerAddr" placeholder="Customer Address" rows="2">STREET, ROCKYDRIFT, WHITE RIVER, 1240</textarea>
+    <textarea id="deliveredTo" placeholder="DELIVERED TO:" rows="2">THULAMAHASHE BRANCH</textarea>
+  </div>
+  <div class="row">
+    <input id="customerVat" placeholder="CUSTOMER VAT NO:" value="4810178519">
+  </div>
+
+  <!-- UPLOAD CATALOGUE (CSV/Excel/Text) -->
+  <div class="section-title no-print">📂 Upload Catalogue (CSV, Excel, TXT)</div>
+  <div class="upload-zone no-print">
+    <input type="file" id="fileUpload" accept=".csv,.xls,.xlsx,.txt,.tsv">
+    <button id="uploadCatalogueBtn" class="btn-success">⬆ Upload & Replace Catalogue</button>
+    <button id="appendCatalogueBtn" class="btn-outline">➕ Append to Catalogue</button>
+    <span style="font-size:12px;color:#555;">(columns: Code, Description, Price)</span>
+  </div>
+
+  <!-- Product Catalogue (hidden in print) -->
+  <div class="section-title no-print">📦 Product Catalogue</div>
+  <div class="row no-print">
+    <input id="prodCode" placeholder="Product Code">
+    <input id="prodDesc" placeholder="Description">
+    <input id="prodPrice" type="number" placeholder="Unit Price" step="0.01">
+    <button id="saveProductBtn">💾 Save Product</button>
+  </div>
+
+  <!-- Add items -->
+  <div class="section-title no-print">➕ Add Items</div>
+  <div class="row no-print">
+    <select id="productList"><option value="">-- Select from Catalogue --</option></select>
+    <input id="itemQty" type="number" placeholder="QTY" value="1" min="1">
+    <input id="itemCode" placeholder="OR Enter Code">
+    <input id="itemDesc" placeholder="Description">
+    <input id="itemPrice" type="number" placeholder="Unit Price" step="0.01">
+    <button id="addBtn">➕ Add Item</button>
+  </div>
+  <div class="row no-print">
+    <button id="addFreeBtn" class="btn-success">➕ Add Free Item (No Charge)</button>
+    <button id="clearBtn" class="btn-gray">🗑 Clear All</button>
+  </div>
+  <div class="row no-print">
+    <input id="freeItem" placeholder="Free Item Description" value="DOOR PIVOT NO CHARGE">
+  </div>
+  <hr class="no-print">
+
+  <!-- MAIN TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th style="width:15%">ITEM CODE</th>
+        <th style="width:8%">QTY</th>
+        <th style="width:37%">DESCRIPTION</th>
+        <th style="width:15%">UNIT PRICE</th>
+        <th style="width:15%">TOTAL</th>
+        <th style="width:5%" class="no-print">DEL</th>
+      </tr>
+    </thead>
+    <tbody id="tbody">
+      <tr><td colspan="6" style="text-align:center;color:#888;padding:20px">No items added</td></tr>
+    </tbody>
+  </table>
+
+  <!-- TOTALS -->
+  <div class="totalBox">
+    <table>
+      <tr><td><b>SUBTOTAL</b></td><td id="sub" style="text-align:right"><b>R0.00</b></td></tr>
+      <tr><td><b>VAT 15%</b></td><td id="vat" style="text-align:right"><b>R0.00</b></td></tr>
+      <tr><td><b>TOTAL</b></td><td id="total" style="text-align:right"><b>R0.00</b></td></tr>
+      <tr><td><b>BAL DUE</b></td><td id="bal" style="text-align:right"><b>R0.00</b></td></tr>
+    </table>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div>
+      <b>BANKING DETAILS</b><br>
+      ACC: 627 817 533 16<br>
+      B/CODE: 250 602<br>
+      FIRST NATIONAL BANK<br>
+      TZANEEN CROSSING
+    </div>
+    <div style="text-align:right">
+      06 BOTHA STREET<br>
+      MODJADJISKLOOF<br>
+      0835<br><br>
+      TEL: 072 710 6877<br>
+      079 113 7847<br>
+      FAX: 086 607 9838<br>
+      E-MAIL: ttswoodmanf@webmail.co.za
+    </div>
+  </div>
+
+  <!-- TERMS -->
+  <div class="terms">
+    <b>TERMS AND CONDITIONS:</b><br>
+    All goods will remain property of TTS 75(PTY) LTD until fully paid for. No correctly supplied items will be refunded. Buyouts and cut items will not be refundable.
+  </div>
+
+  <!-- PRINT -->
+  <div class="no-print" style="text-align:center;margin-top:20px">
+    <button id="printBtn">🖨 Print / Save as PDF</button>
+  </div>
+</div>
+
+<script>
+  (function() {
+    // ===== STATE =====
+    let products = [];
+    let items = [];
+    let currentMode = 'delivery'; // 'delivery' or 'invoice'
+
+    const tbody = document.getElementById('tbody');
+    const productList = document.getElementById('productList');
+    const docBadge = document.getElementById('docBadge');
+
+    // DOM refs
+    const tabDelivery = document.getElementById('tabDelivery');
+    const tabInvoice = document.getElementById('tabInvoice');
+
+    // ===== INIT =====
+    document.getElementById('date').valueAsDate = new Date();
+
+    // Load products from localStorage
+    function loadProducts() {
+      const stored = localStorage.getItem('tts_shared_products');
+      if (stored) {
+        try { products = JSON.parse(stored); } catch(e) { products = []; }
+      }
+      if (!products || products.length === 0) {
+        products = [
+          { code: 'DPVTD8P', desc: 'DOOR PIVOT DESIGNER 8 PANEL WOOD HANDLE', price: 850.00 },
+          { code: 'DPVTRM', desc: 'DOOR PIVOT RHYTHM WOOD', price: 780.00 },
+          { code: 'DPVTSR', desc: 'DOOR PIVOT SUNRISE', price: 720.00 },
+          { code: 'DS8PTTS', desc: 'DOOR STANDARD 8 PANEL TTS', price: 550.00 },
+          { code: 'DSHSLTTTS', desc: 'DOOR STANDARD HORIZONTAL SLAT TTS', price: 600.00 },
+          { code: 'DSTAB8PTTS', desc: 'DOOR STABLE 8 PANEL TTS', price: 650.00 },
+          { code: 'DSTABDSR', desc: 'DOOR STABLE DESIGNER SUNRISE', price: 669.57 }
+        ];
+        localStorage.setItem('tts_shared_products', JSON.stringify(products));
+      }
+      refreshProductList();
+    }
+
+    function refreshProductList() {
+      productList.innerHTML = '<option value="">-- Select from Catalogue --</option>';
+      products.forEach((p, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = p.code + ' - ' + p.desc + ' (R' + p.price.toFixed(2) + ')';
+        productList.appendChild(opt);
+      });
+    }
+
+    // ===== SAVE PRODUCT =====
+    document.getElementById('saveProductBtn').addEventListener('click', function() {
+      const code = document.getElementById('prodCode').value.trim();
+      const desc = document.getElementById('prodDesc').value.trim();
+      const price = parseFloat(document.getElementById('prodPrice').value);
+      if (!code || !desc || isNaN(price) || price <= 0) {
+        alert('Please enter valid code, description, and price');
+        return;
+      }
+      if (products.some(p => p.code.toLowerCase() === code.toLowerCase())) {
+        alert('Product code already exists!');
+        return;
+      }
+      products.push({ code, desc, price });
+      localStorage.setItem('tts_shared_products', JSON.stringify(products));
+      refreshProductList();
+      document.getElementById('prodCode').value = '';
+      document.getElementById('prodDesc').value = '';
+      document.getElementById('prodPrice').value = '';
+      alert('✅ Product "' + code + '" saved!');
+    });
+
+    // ===== UPLOAD CATALOGUE =====
+    function parseFileToProducts(text) {
+      const lines = text.split(/\r?\n/).filter(line => line.trim() !== '');
+      const newProducts = [];
+      for (let line of lines) {
+        // try tab, comma, semicolon
+        let parts = null;
+        if (line.includes('\t')) parts = line.split('\t');
+        else if (line.includes(',')) parts = line.split(',');
+        else if (line.includes(';')) parts = line.split(';');
+        else continue;
+        if (parts.length < 3) continue;
+        const code = parts[0].trim();
+        const desc = parts[1].trim();
+        const price = parseFloat(parts[2].trim());
+        if (code && desc && !isNaN(price) && price >= 0) {
+          newProducts.push({ code, desc, price });
+        }
+      }
+      return newProducts;
+    }
+
+    function handleUpload(mode) {
+      const fileInput = document.getElementById('fileUpload');
+      const file = fileInput.files[0];
+      if (!file) { alert('Please select a file first.'); return; }
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        let content = e.target.result;
+        let parsed = [];
+
+        // If Excel, use SheetJS
+        if (file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
+          try {
+            const data = new Uint8Array(e.target.result);
+            const workbook = XLSX.read(data, { type: 'array' });
+            const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+            for (let row of json) {
+              if (row.length < 3) continue;
+              const code = String(row[0] || '').trim();
+              const desc = String(row[1] || '').trim();
+              const price = parseFloat(row[2]);
+              if (code && desc && !isNaN(price) && price >= 0) {
+                parsed.push({ code, desc, price });
+              }
+            }
+          } catch(err) {
+            alert('Error parsing Excel file: ' + err.message);
+            return;
+          }
+        } else {
+          // text/csv
+          parsed = parseFileToProducts(content);
+        }
+
+        if (parsed.length === 0) {
+          alert('No valid products found. Please ensure columns: Code, Description, Price');
+          return;
+        }
+
+        if (mode === 'replace') {
+          products = parsed;
+        } else {
+          // append
+          for (let p of parsed) {
+            if (!products.some(ex => ex.code.toLowerCase() === p.code.toLowerCase())) {
+              products.push(p);
+            }
+          }
+        }
+        localStorage.setItem('tts_shared_products', JSON.stringify(products));
+        refreshProductList();
+        alert(`✅ ${parsed.length} product(s) ${mode === 'replace' ? 'loaded' : 'appended'}!`);
+        fileInput.value = '';
+      };
+
+      if (file.name.endsWith('.xls') || file.name.endsWith('.xlsx')) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
+    }
+
+    document.getElementById('uploadCatalogueBtn').addEventListener('click', function() { handleUpload('replace'); });
+    document.getElementById('appendCatalogueBtn').addEventListener('click', function() { handleUpload('append'); });
+
+    // ===== RENDER =====
+    function render() {
+      tbody.innerHTML = '';
+      let subtotal = 0;
+
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#888;padding:20px">No items added yet</td></tr>';
+      } else {
+        items.forEach((item, i) => {
+          const isFree = item.isFree || item.price === 0;
+          subtotal += isFree ? 0 : item.total;
+
+          const tr = document.createElement('tr');
+          if (isFree) tr.className = 'free-item';
+
+          const codeCell = isFree ? '' : item.code;
+          const priceDisplay = isFree ? 'XXXXXX' : 'R' + item.price.toFixed(2);
+          const totalDisplay = isFree ? 'XXXXXX' : 'R' + item.total.toFixed(2);
+
+          tr.innerHTML = `
+            <td>${codeCell}</td>
+            <td class="center">${String(item.qty).padStart(2, '0')}</td>
+            <td>${item.desc}</td>
+            <td class="right">${priceDisplay}</td>
+            <td class="right">${totalDisplay}</td>
+            <td class="no-print"><button class="delete-btn" onclick="window.deleteItem(${i})">X</button></td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      // VAT & totals – for invoice show real, for delivery show XXXXXX
+      const vat = subtotal * 0.15;
+      const total = subtotal + vat;
+      if (currentMode === 'invoice') {
+        document.getElementById('sub').innerHTML = '<b>R' + subtotal.toFixed(2) + '</b>';
+        document.getElementById('vat').innerHTML = '<b>R' + vat.toFixed(2) + '</b>';
+        document.getElementById('total').innerHTML = '<b>R' + total.toFixed(2) + '</b>';
+        document.getElementById('bal').innerHTML = '<b>R' + total.toFixed(2) + '</b>';
+      } else {
+        document.getElementById('sub').innerHTML = '<b>XXXXXX</b>';
+        document.getElementById('vat').innerHTML = '<b>XXXXXX</b>';
+        document.getElementById('total').innerHTML = '<b>XXXXXX</b>';
+        document.getElementById('bal').innerHTML = '<b>XXXXXX</b>';
+      }
+    }
+
+    window.deleteItem = function(i) {
+      if (confirm('Remove this item?')) { items.splice(i, 1); render(); }
+    };
+
+    // ===== ADD ITEM =====
+    document.getElementById('addBtn').addEventListener('click', function() {
+      let code, desc, price;
+      let qty = parseInt(document.getElementById('itemQty').value);
+      const selectedIndex = productList.value;
+
+      if (selectedIndex !== '') {
+        const product = products[parseInt(selectedIndex)];
+        if (!product) return;
+        code = product.code; desc = product.desc; price = product.price;
+      } else {
+        code = document.getElementById('itemCode').value.trim();
+        desc = document.getElementById('itemDesc').value.trim();
+        price = parseFloat(document.getElementById('itemPrice').value);
+        if (!code || !desc || isNaN(price) || price < 0) {
+          alert('Please enter valid Item Code, Description, and Price');
+          return;
+        }
+      }
+      if (isNaN(qty) || qty < 1) { alert('Quantity must be at least 1'); return; }
+
+      // check existing (only for non-free)
+      const existing = items.find(it => it.code.toLowerCase() === code.toLowerCase() && !it.isFree && price > 0);
+      if (existing) {
+        existing.qty += qty;
+        existing.total = existing.qty * existing.price;
+      } else {
+        items.push({ code, desc, qty, price, total: price * qty, isFree: false });
+      }
+      render();
+      document.getElementById('itemCode').value = '';
+      document.getElementById('itemDesc').value = '';
+      document.getElementById('itemPrice').value = '';
+      document.getElementById('itemQty').value = '1';
+      productList.value = '';
+    });
+
+    // ===== FREE ITEM =====
+    document.getElementById('addFreeBtn').addEventListener('click', function() {
+      const desc = document.getElementById('freeItem').value.trim();
+      if (!desc) { alert('Please enter a description for the free item'); return; }
+      items.push({ code: '', desc, qty: 1, price: 0, total: 0, isFree: true });
+      render();
+      document.getElementById('freeItem').value = 'DOOR PIVOT NO CHARGE';
+    });
+
+    // ===== CLEAR =====
+    document.getElementById('clearBtn').addEventListener('click', function() {
+      if (confirm('Clear all items?')) { items = []; render(); }
+    });
+
+    // ===== PRINT =====
+    document.getElementById('printBtn').addEventListener('click', function() { window.print(); });
+
+    // ===== DROPDOWN AUTO-FILL =====
+    productList.addEventListener('change', function() {
+      const idx = this.value;
+      if (idx !== '') {
+        const p = products[parseInt(idx)];
+        document.getElementById('itemCode').value = p.code;
+        document.getElementById('itemDesc').value = p.desc;
+        document.getElementById('itemPrice').value = p.price;
+      }
+    });
+
+    // ===== TAB SWITCH =====
+    function setMode(mode) {
+      currentMode = mode;
+      if (mode === 'delivery') {
+        docBadge.className = 'badge badge-delivery';
+        docBadge.textContent = '📦 DELIVERY NOTE';
+        tabDelivery.classList.add('active');
+        tabInvoice.classList.remove('active');
+      } else {
+        docBadge.className = 'badge badge-invoice';
+        docBadge.textContent = '📄 INVOICE';
+        tabInvoice.classList.add('active');
+        tabDelivery.classList.remove('active');
+      }
+      render(); // refresh totals display
+    }
+
+    tabDelivery.addEventListener('click', function() { setMode('delivery'); });
+    tabInvoice.addEventListener('click', function() { setMode('invoice'); });
+
+    // ===== KEYBOARD SHORTCUTS =====
+    document.getElementById('itemPrice').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addBtn').click(); }
+    });
+    document.getElementById('prodPrice').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('saveProductBtn').click(); }
+    });
+    document.getElementById('freeItem').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('addFreeBtn').click(); }
+    });
+
+    // ===== INIT =====
+    loadProducts();
+    setMode('delivery'); // default
+    render();
+
+    console.log('✅ TTS Shared Delivery/Invoice Generator Ready');
+    console.log('📦 Products loaded:', products.length);
+  })();
+</script>
+</body>
+</html>
