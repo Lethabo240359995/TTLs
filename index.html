@@ -378,9 +378,23 @@
           const tr = document.createElement('tr');
           if (isFree) tr.className = 'free-item';
 
+          // ---- MODIFICATION: for delivery mode, show XXXXXX in unit price & total ----
+          let priceDisplay, totalDisplay;
+          if (currentMode === 'delivery') {
+            priceDisplay = 'XXXXXX';
+            totalDisplay = 'XXXXXX';
+          } else {
+            // invoice mode: show actual values
+            priceDisplay = 'R' + item.price.toFixed(2);
+            totalDisplay = 'R' + item.total.toFixed(2);
+          }
+          // free items always show XXXXXX (no charge)
+          if (isFree) {
+            priceDisplay = 'XXXXXX';
+            totalDisplay = 'XXXXXX';
+          }
+
           const codeCell = isFree ? '' : item.code;
-          const priceDisplay = isFree ? 'XXXXXX' : 'R' + item.price.toFixed(2);
-          const totalDisplay = isFree ? 'XXXXXX' : 'R' + item.total.toFixed(2);
 
           tr.innerHTML = `
             <td>${codeCell}</td>
@@ -519,5 +533,7 @@
     console.log('📦 Products loaded:', products.length);
   })();
 </script>
+</body>
+</html>
 </body>
 </html>
